@@ -6,7 +6,12 @@ public class RandomNumberGenerator {
 
 	public static int seed = 0;
 	
+	public static Random r;
+	
 	public static double GenerateNext() {
-		return new Random(seed).nextDouble();
+		if(r == null) {
+			r = new Random(seed);
+		}
+		return r.nextDouble();
 	}
 }

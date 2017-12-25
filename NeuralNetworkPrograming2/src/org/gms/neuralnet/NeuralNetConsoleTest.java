@@ -36,6 +36,13 @@ public class NeuralNetConsoleTest {
 	    neuralInput[0] = 1.0;
 	    neuralInput[1] = 2.1;
 
+	    System.out.println("Feeding the values ["+String.valueOf(neuralInput[0])+" ; "+
+                String.valueOf(neuralInput[1])+"] to the neural network");
+	    nn.setInput(neuralInput);
+	    nn.calc();
+	    neuralOutput=nn.getOutput();
+	    
+	    System.out.println("Output generated:" + Arrays.toString(neuralOutput));
 	}
 
 }
