@@ -9,4 +9,17 @@ public class InputNeuron extends Neuron{
 		// TODO Auto-generated constructor stub
 	}
 
+	@Override
+	public void calc() {
+		outputBeforeActivation = 0.0;
+		if(numberOfInputs > 0) {
+			if(input != null) {
+				for(int i = 0;i < numberOfInputs;i++) {
+					double valor = input.get(i);
+					outputBeforeActivation += valor;
+				}
+			}
+		}
+		output = activationFunction.calc(outputBeforeActivation);
+	}
 }

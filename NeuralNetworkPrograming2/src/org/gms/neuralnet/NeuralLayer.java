@@ -8,7 +8,7 @@ import org.gms.neuralnet.math.IActivationFunction;
 public abstract class NeuralLayer {
 
 	protected int numberOfNeuronsInLayer;
-	private ArrayList<Neuron> neuron;
+	protected ArrayList<Neuron> neuron;
 	protected IActivationFunction activationFunction;
 	protected NeuralLayer previousLayer;
 	protected NeuralLayer nextLayer;

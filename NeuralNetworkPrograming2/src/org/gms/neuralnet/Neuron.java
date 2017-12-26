@@ -9,12 +9,12 @@ import org.gms.neuralnet.math.RandomNumberGenerator;
 public class Neuron {
 
 	protected ArrayList<Double> weight;
-	private List<Double> input;
-	private Double output;
-	private Double outputBeforeActivation;
-	private int numberOfInputs = 0;
+	protected List<Double> input;
+	protected Double output;
+	protected Double outputBeforeActivation;
+	protected int numberOfInputs = 0;
 	protected double bias = 1.0;
-	private IActivationFunction activationFunction;
+	protected IActivationFunction activationFunction;
 	
 	public Neuron(int numberOfInputs, IActivationFunction iaf) {
 		this.numberOfInputs = numberOfInputs;
