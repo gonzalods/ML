@@ -13,17 +13,26 @@ public abstract class LearningAlgorithm {
     protected LearningMode learningMode;
     protected LearningParadigm learningParadigm;
 
-	protected int maxEpoch = 100;
-	protected int epoch = 0;
-	protected double minOverallError = 0.001;
-	protected double learningRate = 0.1;
+	//Controlan el número de iteraciones para calcular los pesos
+    protected int maxEpoch = 100;				// Número máximo de iteraciones
+	protected int epoch = 0;					// Contador de iteraciones
+	protected double minOverallError = 0.001;	// Error mínimo
+	
+	protected double learningRate = 0.1;		// Valor alfa.
 
 	protected NeuralDataSet trainingDataSet;
 	protected NeuralDataSet testingDataSet;
 	protected NeuralDataSet validatingDataSet;
+	
 	public boolean printTraining = false;
 	
+	/*
+	 * 
+	 */
 	public abstract void train() throws NeuralException;
+	/*
+	 * 
+	 */
 	public abstract void forward() throws NeuralException;
 	public abstract void forward(int i) throws NeuralException;
 	public abstract Double calcNewWeight(int layer, int input, int neuron) throws NeuralException;

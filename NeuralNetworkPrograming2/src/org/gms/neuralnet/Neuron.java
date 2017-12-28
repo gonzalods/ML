@@ -47,6 +47,10 @@ public class Neuron {
 		output = activationFunction.calc(outputBeforeActivation);
 	}
 	
+	public ArrayList<Double> derivativeBatch(ArrayList<ArrayList<Double>> input){
+		//TODO
+		return null;
+	}
 	public void setActivationFunction(IActivationFunction af) {
 		this.activationFunction = af;
 	}
@@ -57,5 +61,9 @@ public class Neuron {
 	
 	public Double getOutput() {
 		return output;
+	}
+
+	public int getNumberOfInputs() {
+		return numberOfInputs;
 	}
 }

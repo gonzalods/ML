@@ -63,4 +63,8 @@ public abstract class NeuralLayer {
 	public void setInput(List<Double> input) {
 		this.input = input;
 	}
+	
+	public Neuron getNeuron(int index){
+		return neuron.get(index);
+	}
 }

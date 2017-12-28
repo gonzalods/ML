@@ -73,5 +73,29 @@ public class NeuralNet {
 			System.out.println("\tHidden Layer " + i + ": " + hiddenLayer.get(i).getNumberOfNeuronsInLayer() + " Neurons");
 		}
 	}
+
+	public int getNumberOfHiddenLayers() {
+		return numberOfHiddenLayers;
+	}
+
+	public int getNumberOfOutputs() {
+		return numberOfOutputs;
+	}
+
+	public int getNumberOfInputs() {
+		return numberOfInputs;
+	}
+
+	public List<HiddenLayer> getHiddenLayer() {
+		return hiddenLayer;
+	}
+	
+	public HiddenLayer getHiddenLayer(int index) {
+		return hiddenLayer.get(index);
+	}
+
+	public OutputLayer getOutputLayer() {
+		return outputLayer;
+	}
 	
 }
