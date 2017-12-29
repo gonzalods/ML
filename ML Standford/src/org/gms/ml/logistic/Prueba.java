@@ -2,6 +2,7 @@ package org.gms.ml.logistic;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.function.DoubleBinaryOperator;
 
@@ -159,7 +160,8 @@ public class Prueba {
 	}
 	
 	public static void print(RealMatrix matrix) {
-		RealMatrixFormat formater = new RealMatrixFormat("\n", "\n", "\t", "", "\n", "   ");
+		DecimalFormat fmt = new DecimalFormat("0.0#####");
+		RealMatrixFormat formater = new RealMatrixFormat("\n", "\n", "\t", "", "\n", "   ",fmt);
 		System.out.println(formater.format(matrix));
 		//System.out.println(MatrixUtils.OCTAVE_FORMAT.format(matrix));
 	}
