@@ -1,6 +1,5 @@
 package org.gms.ml.logistic;
 
-import org.apache.commons.math3.linear.DefaultRealMatrixChangingVisitor;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
@@ -14,33 +13,36 @@ public class Fmincg {
 	private final static int MAX = 20;
 	private final static int RATIO = 100;
 	
-	public static Object[] fmincg(RealMatrix init_theta, RealMatrix X, RealMatrix y, double lambda, int maxIter){
+	public static Object[] fmincg(RealVector init_theta, RealMatrix X, RealVector y, double lambda, int maxIter){
 		
 		String S = "Iteration ";
 		int red = 1;
 		int i = 0;
 		boolean ls_failed = false;
 		RealVector fX = MatrixUtils.createRealVector(new double[]{});
-		Object[] rc = Prueba.lrCostFunction(init_theta, X, y, lambda);
-		RealMatrix df1 = (RealMatrix)rc[1];
+		Object[] rc = MultiVarianteRegularized.lrCostFunction(init_theta, X, y, lambda);
+		RealVector df1 = (RealVector)rc[1];
 		double f1 = (Double)rc[0];
 //		i = i + (length<0);                                            % count epochs?!
-		RealMatrix s = df1.scalarMultiply(-1.0);
-		double d1 = s.scalarMultiply(-1).transpose().multiply(s).getEntry(0, 0); 
-		double z1 = 1.0 / (1.0 - d1);
-		
+		RealVector s = df1.mapMultiply(-1.0);
+		double d1 = s.mapMultiply(-1).dotProduct(s); 
+		double z1 = red / (1.0 - d1);
 		while(i < maxIter){
 			i++;													  //i = i + (length>0);   % count iterations?!
 			
-			RealMatrix init_theta0 = init_theta.copy(), df0 = df1.copy();
+			RealVector init_theta0 = init_theta.copy(), df0 = df1.copy();
 			double f0 = f1;
-			init_theta = init_theta.add(s.scalarMultiply(z1));
-			rc = Prueba.lrCostFunction(init_theta, X, y, lambda);
+			init_theta = init_theta.add(s.mapMultiply(z1));
+//			System.out.println(i);
+//			System.out.println(init_theta);
+
+			
+			rc = MultiVarianteRegularized.lrCostFunction(init_theta, X, y, lambda);
 //			i = i + (length<0);                                          % count epochs?!
-			RealMatrix df2 = (RealMatrix)rc[1];
+			RealVector df2 = (RealVector)rc[1];
 			double f2 = (Double)rc[0];
-			double d2 = df2.transpose().multiply(s).getEntry(0, 0);
-			double f3 = f1, d3 = d1, z3 = z1;
+			double d2 = df2.dotProduct(s);
+			double f3 = f1, d3 = d1, z3 = -z1;
 //			if length>0, M = MAX; else M = min(MAX, -length-i); end
 			int M = MAX;
 			boolean success = false;
@@ -61,12 +63,12 @@ public class Fmincg {
 					}
 					z2 = Double.max(Double.min(z2, INT*z3), (1-INT)*z3);
 					z1 = z1 + z2;
-					init_theta = init_theta.add(s.scalarMultiply(z2));
-					rc = Prueba.lrCostFunction(init_theta, X, y, lambda);
+					init_theta = init_theta.add(s.mapMultiply(z2));
+					rc = MultiVarianteRegularized.lrCostFunction(init_theta, X, y, lambda);
+					df2 = (RealVector)rc[1];
 					f2 = (Double)rc[0];
-					d2 = df2.transpose().multiply(s).getEntry(0, 0);
 					M--; //i = i + (length<0);                           % count epochs?!
-					d2 = df2.transpose().multiply(s).getEntry(0, 0);
+					d2 = df2.dotProduct(s);
 					z3 = z3 - z2;
 				}
 				if (f2 > f1+z1*RHO*d1 || d2 > -SIG*d1) 
@@ -97,31 +99,42 @@ public class Fmincg {
 				}
 				f3 = f2; d3 = d2; z3 = -z2;
 				z1 = z1 + z2;
-				init_theta = init_theta.add(s.scalarMultiply(z2));
-				rc = Prueba.lrCostFunction(init_theta, X, y, lambda);
+				init_theta = init_theta.add(s.mapMultiply(z2));
+				rc = MultiVarianteRegularized.lrCostFunction(init_theta, X, y, lambda);
 				f2 = (Double)rc[0];
-				d2 = df2.transpose().multiply(s).getEntry(0, 0);
+				df2 = (RealVector)rc[1];
 				M--; //i = i + (length<0);                           % count epochs?!
-				d2 = df2.transpose().multiply(s).getEntry(0, 0);
+				d2 = df2.dotProduct(s);
 			}
+			
 			if(success){
 				f1 = f2;
-				fX = fX.append(f1);  
+				fX = fX.append(f1);
+				//Prueba.fprintf("%s %4d | Cost: %4.6e\n", S, i, f1);
+				s = s.mapMultiplyToSelf((df2.dotProduct(df2) - df1.dotProduct(df2))/(df1.dotProduct(df1))).subtract(df2);
+				RealVector tmp = df1; df1 = df2; df2 = tmp;
+				d2 = df1.dotProduct(s);
+				if (d2 > 0) {                                      
+			      s = df1.mapMultiply(-1);
+			      d2 = s.mapMultiply(-1).dotProduct(s);
+				}
+			    z1 = z1 * Math.min((double)RATIO, d1/(d2-Double.MIN_VALUE));          
+			    d1 = d2;
+			    ls_failed = false;  
+			}else {
+			    init_theta = init_theta0; f1 = f0; df1 = df0;  
+			    if (ls_failed || i > Math.abs(maxIter)) {
+			      break;
+			    }
+			    RealVector tmp = df1; df1 = df2; df2 = tmp;                         
+			    s = df1.mapMultiply(-1);
+			    d1 = s.mapMultiply(-1).dotProduct(s);
+			    z1 = 1/(1-d1);                     
+			    ls_failed = true; 				
 			}
 			
 		}
-		return null;
-	}
-	
-	
-	private static RealMatrix scalarDiv(double numerator, RealMatrix denominator){
-		RealMatrix result = denominator.copy();
-		result.walkInRowOrder(new DefaultRealMatrixChangingVisitor() {
-			@Override
-			public double visit(int row, int column, double value) {
-				return numerator/value;
-			}
-		});
-		return result;
+		MultiVarianteRegularized.fprintf("%s %4d | Cost: %4.6e\n", S, i, f1);
+		return new Object[] {init_theta, fX, i};
 	}
 }
