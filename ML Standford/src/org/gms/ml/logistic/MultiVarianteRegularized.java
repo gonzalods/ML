@@ -1,5 +1,6 @@
 package org.gms.ml.logistic;
 
+import static org.gms.ml.utils.AlgebraUtils.*;
 import java.io.File;
 import java.io.IOException;
 import java.text.DecimalFormat;
@@ -100,11 +101,12 @@ public class MultiVarianteRegularized {
 		int n = Xini.getColumnDimension();
 		
 		RealMatrix all_theta = MatrixUtils.createRealMatrix(num_labels, n + 1);
-		RealVector ones = MatrixUtils.createRealVector(new double[m]);
-		ones.set(1.0);
-		RealMatrix X = MatrixUtils.createRealMatrix(m, n+1);
-		X.setColumnVector(0, ones);
-		X.setSubMatrix(Xini.getData(), 0, 1);
+		RealMatrix X = addColumToMatrix(ones(m), Xini);
+//		RealVector ones = MatrixUtils.createRealVector(new double[m]);
+//		ones.set(1.0);
+//		RealMatrix X = MatrixUtils.createRealMatrix(m, n+1);
+//		X.setColumnVector(0, ones);
+//		X.setSubMatrix(Xini.getData(), 0, 1);
 		
 		for (int i = 1;i <= num_labels; i++) {
 			final int ic = i;
