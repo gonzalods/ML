@@ -9,7 +9,6 @@ import java.util.Arrays;
 import org.apache.commons.math3.analysis.function.Log;
 import org.apache.commons.math3.analysis.function.Sigmoid;
 import org.apache.commons.math3.linear.DefaultRealMatrixChangingVisitor;
-import org.apache.commons.math3.linear.DefaultRealMatrixPreservingVisitor;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealMatrixFormat;
@@ -71,7 +70,7 @@ public class MultiVarianteRegularized {
 		
 		RealVector pred = predictOneVsAll(all_theta, X);
 
-		double mean = StatUtils.mean(compareVector(pred, y).toArray());
+		double mean = StatUtils.mean(compareEqVectors(pred, y).toArray());
 		fprintf("\nTraining Set Accuracy: %f\n", mean * 100);
 		
 
@@ -125,17 +124,6 @@ public class MultiVarianteRegularized {
 
 	}
 
-	public static RealMatrix reshape(double[] data, int rows, int cols) {
-		RealMatrix matrix = MatrixUtils.createRealMatrix(rows, cols);
-		int ixdata = 0;
-		for (int i = 0; i < cols; i++) {
-			for (int j = 0; j < rows; j++) {
-				matrix.setEntry(j, i, data[ixdata++]);
-			}
-		}
-		return matrix;
-	}
-
 	public static Object[] lrCostFunction(RealVector theta, RealMatrix X, RealVector y, double lambda) {
 
 		Object[] result = new Object[2];
@@ -170,75 +158,6 @@ public class MultiVarianteRegularized {
 		grad.setSubVector(1, grad_part.add(regu_part));
 		result[1] = grad;
 
-		return result;
-	}
-
-	public static RealVector compareVector(final RealVector a, final RealVector b) {
-		RealVector result = MatrixUtils.createRealVector(new double[a.getDimension()]);
-		result.walkInDefaultOrder(new RealVectorChangingVisitor() {
-			@Override
-			public double visit(int index, double value) {
-				return a.getEntry(index) == b.getEntry(index)?1.0:0.0 ;
-			}
-			@Override
-			public double end() {
-				return 0;
-			}
-			@Override
-			public void start(int arg0, int arg1, int arg2) {}
-		});
-	
-		return result;
-	}
-	public static RealMatrix sigmoid(RealMatrix Z) {
-		RealMatrix result = Z.copy();
-		result.walkInRowOrder(new DefaultRealMatrixChangingVisitor() {
-			Sigmoid sigmoid = new Sigmoid();
-			@Override
-			public double visit(int row, int column, double value) {
-				return sigmoid.value(value);
-			}
-		});
-		return result;
-	}
-
-	public static RealMatrix log(RealMatrix Z) {
-		RealMatrix result = Z.copy();
-		result.walkInRowOrder(new DefaultRealMatrixChangingVisitor() {
-			@Override
-			public double visit(int row, int column, double value) {
-				return Math.log(value);
-			}
-		});
-		return result;
-	}
-
-	public static double sum(RealMatrix matrix) {
-		double result = 0;
-		result = matrix.walkInRowOrder(new DefaultRealMatrixPreservingVisitor() {
-			double sum = 0.0;
-
-			@Override
-			public void visit(int row, int column, double value) {
-				sum += value;
-			}
-
-			@Override
-			public double end() {
-				return sum;
-			}
-		});
-		return result;
-	}
-
-	public static RealMatrix power(RealMatrix Z) {
-		RealMatrix result = Z.copy();
-		result.walkInRowOrder(new DefaultRealMatrixChangingVisitor() {
-			@Override
-			public double visit(int row, int column, double value) {
-				return Math.pow(value, 2);
-			}
-		});
 		return result;
 	}
 
