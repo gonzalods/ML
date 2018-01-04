@@ -5,16 +5,23 @@ import static org.gms.ml.utils.OutputUtils.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Random;
 
+import org.apache.commons.math3.linear.DefaultRealMatrixChangingVisitor;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
+import org.apache.commons.math3.random.GaussianRandomGenerator;
+import org.apache.commons.math3.random.NormalizedRandomGenerator;
+import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.random.RandomGeneratorFactory;
 
 import com.jmatio.io.MatFileReader;
 import com.jmatio.types.MLDouble;
 
 public class BackPropagation {
 
+	private static RandomGenerator rg = RandomGeneratorFactory.createRandomGenerator(new Random());
 	public static void main(String[] args) throws IOException {
 		
 		fprintf("Loading and Visualizing Data ...\n");
@@ -35,14 +42,42 @@ public class BackPropagation {
 		
 		System.out.printf("Dimensiones Theta1 %dx%d%n",Theta1.getRowDimension(), Theta1.getColumnDimension());
 		System.out.printf("Dimensiones Theta2 %dx%d%n",Theta2.getRowDimension(), Theta2.getColumnDimension());
-		RealVector theta_all = rollMatrixs(Theta1, Theta2);
 		
+		RealVector theta_all = rollMatrixs(Theta1, Theta2);
 		Object[] res = nnCostFunction(theta_all, X, y, 2);
 		
 		fprintf("Función de coste: %.6e%n", res[0]);
 		
+		RealMatrix Grad1 = reshape(((RealVector)res[1]).toArray(), 25, 401);
+		RealMatrix Grad2 = reshape(((RealVector)res[1]).toArray(), 10, 26);
+		print(Grad1);
+		print(Theta1);
+		print(Grad2);
+		print(Theta2);
+//		generateRandomMatrix(Theta1);
+//		generateRandomMatrix(Theta2);
+//		
+//		theta_all = rollMatrixs(Theta1, Theta2);
+//		res = nnCostFunction(theta_all, X, y, 2);
+//		
+//		fprintf("Función de coste: %.6e%n", res[0]);
+//		
+//		Grad1 = reshape(((RealVector)res[1]).toArray(), 25, 401); 
+//		Grad2 = reshape(((RealVector)res[1]).toArray(), 10, 26);
+//		print(Grad1);
+//		print(Grad2);
+		
 	}
 	
+	private static void generateRandomMatrix(RealMatrix M){
+		final NormalizedRandomGenerator nrg = new GaussianRandomGenerator(rg);
+		M.walkInColumnOrder(new DefaultRealMatrixChangingVisitor(){
+			@Override
+			public double visit(int row, int column, double value) {
+				return nrg.nextNormalizedDouble();
+			}
+		});
+	}
 	public static Object[] nnCostFunction(RealVector theta, RealMatrix X, RealVector y, double lambda){
 		int m = y.getDimension();
 		double J = 0;
@@ -50,20 +85,15 @@ public class BackPropagation {
 		
 		RealMatrix Theta1 = reshape(theta.toArray(), 25, 401); 
 		RealMatrix Theta2 = reshape(theta.toArray(), 10, 26);
-//		RealMatrix Theta3 = reshape(theta.toArray(), 10, 11);
 		
 		RealMatrix A1 = addColumToMatrix(ones(m), X); 				// A1 = mx401
 		RealMatrix A2 = sigmoid(A1.multiply(Theta1.transpose()));	// mx401 * 401x25 = mx25
 		A2 = addColumToMatrix(ones(m), A2);							// A2 = mx26
-//		RealMatrix A3 = sigmoid(A2.multiply(Theta2.transpose()));
-//		A3 = addColumToMatrix(ones(m), A3);
-//		RealMatrix H = sigmoid(A3.multiply(Theta3.transpose()));
 		RealMatrix H = sigmoid(A2.multiply(Theta2.transpose()));	// H = mx26 * 26x10 = mx10
 		int k = H.getColumnDimension();
 		
-		double sum_reg = sum(power(Theta1.getSubMatrix(0, Theta1.getRowDimension()-1, 1, Theta1.getColumnDimension()-2),2));
-		sum_reg += sum(power(Theta2.getSubMatrix(0, Theta2.getRowDimension()-1, 1, Theta2.getColumnDimension()-2),2));
-//		sum_reg += sum(power(Theta3.getSubMatrix(0, Theta3.getRowDimension(), 1, Theta3.getColumnDimension()),2));
+		double sum_reg = sum(power(Theta1.getSubMatrix(0, Theta1.getRowDimension()-1, 1, Theta1.getColumnDimension()-1),2));
+		sum_reg += sum(power(Theta2.getSubMatrix(0, Theta2.getRowDimension()-1, 1, Theta2.getColumnDimension()-1),2));
 		
 		sum_reg = lambda / (2 * m) * sum_reg;
 		
@@ -80,20 +110,49 @@ public class BackPropagation {
 		
 		RealMatrix Delta1 = MatrixUtils.createRealMatrix(Theta1.getRowDimension(), Theta1.getColumnDimension()); // 25x401
 		RealMatrix Delta2 = MatrixUtils.createRealMatrix(Theta2.getRowDimension(), Theta2.getColumnDimension()); // 10x26
-		RealMatrix Delta3 = MatrixUtils.createRealMatrix(k, 1); // 10x1
+
 		for(int i = 0;i < m;i++){
-//			RealVector a1i = A1.getRowVector(i).getSubVector(1, A1.getColumnDimension()-2);
-			RealVector a2i = A2.getRowVector(i).getSubVector(1, A2.getColumnDimension()-2); // a2i 		= 1x25
-			RealVector hi = H.getRowVector(i);												// hi  		= 1x10
-			RealVector deltaih = hi.subtract(Y.getRowVector(i));							// deltaih 	= 1x10 - 1x10 = 1x10
-			RealVector deltai2 = Theta2.getSubMatrix(0, Theta2.getRowDimension()-1, 1, Theta2.getColumnDimension()-2) 
-					.transpose().operate(deltaih).ebeMultiply(a2i).ebeMultiply(a2i.map((x) -> 1 - x));
-//			RealVector deltai1 = Theta1.getSubMatrix(0, Theta1.getRowDimension()-1, 1, Theta2.getColumnDimension()-2) 
-//					.transpose().operate(deltaih).ebeMultiply(a1i).ebeMultiply(a1i.map((x) -> 1 - x));
-			System.out.println(deltai2);
-//			Delta1 = Delta1.add(A1.getRowVector(i).ebeDivide(deltai2));
+			RealMatrix a1i = A1.getRowMatrix(i).transpose();								// a1i		= 401x1
+			final RealMatrix a2i = A2.getRowMatrix(i).transpose();							// a2i 		= 26x1
+			RealMatrix hi = H.getRowMatrix(i).transpose();									// hi  		= 10x1
+			
+			RealMatrix deltaih = hi.subtract(Y.getRowMatrix(i).transpose());				
+//                      10x1   = 10x1   -       1x10   ->         10x1
+			RealMatrix deltai2 = Theta2.transpose().multiply(deltaih);
+//			     	    26x1   = 10x26 -> 26x10	       *     10x1
+			deltai2.walkInColumnOrder(new DefaultRealMatrixChangingVisitor(){
+				@Override
+				public double visit(int row, int column, double value) {
+					double result = value;
+					if(column != 0){
+						double av = a2i.getEntry(row, column);
+						result *= (av * (1 - av));
+					}
+					return result;
+				}
+			});
+			Delta1 = Delta1.add(deltai2.getSubMatrix(1, deltai2.getRowDimension()-1, 0, deltai2.getColumnDimension()-1)
+																	.multiply(a1i.transpose()));
+//          25x401   25x401	 +	 			25x1                        *    401x1 -> 1x401
+			Delta2 = Delta2.add(deltaih.multiply(a2i.transpose()));
+//          10x26  = 10x26       10x1      *    26x1 -> 1x26
 		}
 		
+		RealMatrix D1 = MatrixUtils.createRealMatrix(Theta1.getRowDimension(), Theta1.getColumnDimension());
+		RealMatrix D2 = MatrixUtils.createRealMatrix(Theta2.getRowDimension(), Theta2.getColumnDimension());
+		
+		
+		RealMatrix SumPart = Delta1.getSubMatrix(0, Delta1.getRowDimension()-1, 1, Delta1.getColumnDimension()-1)
+				.add(Theta1.getSubMatrix(0, Theta1.getRowDimension()-1, 1, Theta1.getColumnDimension()-1).scalarMultiply(lambda));
+		D1.setColumnVector(0, Delta1.getColumnVector(0).mapMultiply(1.0/m));
+		D1.setSubMatrix(SumPart.scalarMultiply(1.0/m).getData(), 0, 1);
+		
+		SumPart = Delta2.getSubMatrix(0, Delta2.getRowDimension()-1, 1, Delta2.getColumnDimension()-1)
+				.add(Theta2.getSubMatrix(0, Theta2.getRowDimension()-1, 1, Theta2.getColumnDimension()-1).scalarMultiply(lambda));
+		D2.setColumnVector(0, Delta2.getColumnVector(0).mapMultiplyToSelf(1.0/m));
+		D2.setSubMatrix(SumPart.scalarMultiply(1.0/m).getData(), 0, 1);
+		
+		grad = rollMatrixs(D1,D2);
 		return new Object[]{J, grad};
 	}
 
