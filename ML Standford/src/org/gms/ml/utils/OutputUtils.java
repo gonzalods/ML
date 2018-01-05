@@ -16,9 +16,9 @@ public class OutputUtils {
 		System.out.printf(string, object);
 	}
 	
-	public static void print(RealMatrix matrix) {
-		DecimalFormat fmt = new DecimalFormat(" 0.00000E00;-0.000000E00");
-		RealMatrixFormat formater = new RealMatrixFormat("\n", "\n", "\t", "fin", "\n", "   ", fmt);
+	public static void fprintf(RealMatrix matrix) {
+		DecimalFormat fmt = new DecimalFormat(" 0.00000;-0.000000");
+		RealMatrixFormat formater = new RealMatrixFormat("\n", "\n", "\t", "", "\n", "   ", fmt);
 		System.out.println(formater.format(matrix));
 		// System.out.println(MatrixUtils.OCTAVE_FORMAT.format(matrix));
 	}

@@ -5,6 +5,7 @@ import static org.gms.ml.utils.OutputUtils.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.commons.math3.linear.DefaultRealMatrixChangingVisitor;
@@ -43,29 +44,44 @@ public class BackPropagation {
 		System.out.printf("Dimensiones Theta1 %dx%d%n",Theta1.getRowDimension(), Theta1.getColumnDimension());
 		System.out.printf("Dimensiones Theta2 %dx%d%n",Theta2.getRowDimension(), Theta2.getColumnDimension());
 		
-		RealVector theta_all = rollMatrixs(Theta1, Theta2);
-		Object[] res = nnCostFunction(theta_all, X, y, 2);
-		
-		fprintf("Función de coste: %.6e%n", res[0]);
-		
-		RealMatrix Grad1 = reshape(((RealVector)res[1]).toArray(), 25, 401);
-		RealMatrix Grad2 = reshape(((RealVector)res[1]).toArray(), 10, 26);
-		print(Grad1);
-		print(Theta1);
-		print(Grad2);
-		print(Theta2);
-//		generateRandomMatrix(Theta1);
-//		generateRandomMatrix(Theta2);
-//		
-//		theta_all = rollMatrixs(Theta1, Theta2);
-//		res = nnCostFunction(theta_all, X, y, 2);
+//		RealVector theta_all = rollMatrixs(Theta1, Theta2);
+//		Object[] res = nnCostFunction(theta_all, X, y, 2);
 //		
 //		fprintf("Función de coste: %.6e%n", res[0]);
 //		
-//		Grad1 = reshape(((RealVector)res[1]).toArray(), 25, 401); 
-//		Grad2 = reshape(((RealVector)res[1]).toArray(), 10, 26);
-//		print(Grad1);
-//		print(Grad2);
+//		double[] gradAll = ((RealVector)res[1]).toArray();
+//		RealMatrix Grad1 = reshape(Arrays.copyOfRange(gradAll, 0, 10025), 25, 401);
+//		RealMatrix Grad2 = reshape(Arrays.copyOfRange(gradAll, 10025, gradAll.length+1), 10, 26);
+//		System.out.println("Grad1");
+//		fprintf(Grad1);
+//		System.out.println("Theta1");
+//		fprintf(Theta1);
+//		System.out.println("Grad2");
+//		fprintf(Grad2);
+//		System.out.println("Theta2");
+//		fprintf(Theta2);
+		
+//		generateRandomMatrix(Theta1);
+//		generateRandomMatrix(Theta2);
+		
+		RealVector theta_all = rollMatrixs(Theta1, Theta2);
+		Object[] res = nnCostFunction(theta_all, X, y, 2);
+		fprintf("Función de coste: %.6e%n", res[0]);
+		
+		res = nnCostFunction((RealVector)res[1], X, y, 2);
+		fprintf("Función de coste: %.6e%n", res[0]);
+		
+//		double[] gradAll = ((RealVector)res[1]).toArray();
+//		RealMatrix Grad1 = reshape(Arrays.copyOfRange(gradAll, 0, 10025), 25, 401);
+//		RealMatrix Grad2 = reshape(Arrays.copyOfRange(gradAll, 10025, gradAll.length+1), 10, 26);
+//		System.out.println("Grad1");
+//		fprintf(Grad1);
+//		System.out.println("Theta1");
+//		fprintf(Theta1);
+//		System.out.println("Grad2");
+//		fprintf(Grad2);
+//		System.out.println("Theta2");
+//		fprintf(Theta2);
 		
 	}
 	
@@ -81,32 +97,23 @@ public class BackPropagation {
 	public static Object[] nnCostFunction(RealVector theta, RealMatrix X, RealVector y, double lambda){
 		int m = y.getDimension();
 		double J = 0;
-		RealVector grad = MatrixUtils.createRealVector(new double[theta.getDimension()]);
+		RealVector grad = null;
 		
-		RealMatrix Theta1 = reshape(theta.toArray(), 25, 401); 
-		RealMatrix Theta2 = reshape(theta.toArray(), 10, 26);
+		RealMatrix Theta1 = reshape(Arrays.copyOfRange(theta.toArray(), 0, 10025), 25, 401); 
+		RealMatrix Theta2 = reshape(Arrays.copyOfRange(theta.toArray(), 10025, theta.toArray().length+1), 10, 26);
 		
 		RealMatrix A1 = addColumToMatrix(ones(m), X); 				// A1 = mx401
 		RealMatrix A2 = sigmoid(A1.multiply(Theta1.transpose()));	// mx401 * 401x25 = mx25
 		A2 = addColumToMatrix(ones(m), A2);							// A2 = mx26
 		RealMatrix H = sigmoid(A2.multiply(Theta2.transpose()));	// H = mx26 * 26x10 = mx10
-		int k = H.getColumnDimension();
+//		int k = H.getColumnDimension();
 		
-		double sum_reg = sum(power(Theta1.getSubMatrix(0, Theta1.getRowDimension()-1, 1, Theta1.getColumnDimension()-1),2));
-		sum_reg += sum(power(Theta2.getSubMatrix(0, Theta2.getRowDimension()-1, 1, Theta2.getColumnDimension()-1),2));
-		
-		sum_reg = lambda / (2 * m) * sum_reg;
-		
+//		
 		RealMatrix Y = createMatrixFromVectors(compareEqVector(y, 1),compareEqVector(y, 2),compareEqVector(y, 3),
 				compareEqVector(y, 4),compareEqVector(y, 5),compareEqVector(y, 6),compareEqVector(y, 7),compareEqVector(y, 8),
 				compareEqVector(y, 9),compareEqVector(y, 10));
-		RealMatrix Y_negative = Y.scalarMultiply(-1.0);
-		RealMatrix Ones_minus_y = Y_negative.scalarAdd(1.0); 
-		RealMatrix Ones_minus_sigmoid = sigmoid(H).scalarMultiply(-1.0).scalarAdd(1.0);
-		RealMatrix First_part = ebeProduct(Y_negative, log(H));
-		RealMatrix Second_part = ebeProduct(Ones_minus_y, log(Ones_minus_sigmoid));
 		
-		J = (1 / m) * sum(First_part.subtract(Second_part)) + sum_reg;
+		J = jota(Theta1, Theta2, H, Y, lambda, m);
 		
 		RealMatrix Delta1 = MatrixUtils.createRealMatrix(Theta1.getRowDimension(), Theta1.getColumnDimension()); // 25x401
 		RealMatrix Delta2 = MatrixUtils.createRealMatrix(Theta2.getRowDimension(), Theta2.getColumnDimension()); // 10x26
@@ -154,6 +161,35 @@ public class BackPropagation {
 		
 		grad = rollMatrixs(D1,D2);
 		return new Object[]{J, grad};
+	}
+	
+	private static double jota(RealMatrix Theta1, RealMatrix Theta2, RealMatrix H, RealMatrix Y, double lambda, int m){
+		
+		double sum_reg = sum(power(Theta1.getSubMatrix(0, Theta1.getRowDimension()-1, 1, Theta1.getColumnDimension()-1),2));
+			   sum_reg += sum(power(Theta2.getSubMatrix(0, Theta2.getRowDimension()-1, 1, Theta2.getColumnDimension()-1),2));
+		
+		sum_reg = lambda / (2.0 * m) * sum_reg;
+		
+		RealMatrix Y_negative = Y.scalarMultiply(-1.0);
+		RealMatrix Ones_minus_y = Y_negative.scalarAdd(1.0); 
+		RealMatrix Ones_minus_sigmoid = sigmoid(H).scalarMultiply(-1.0).scalarAdd(1.0);
+		RealMatrix First_part = ebeProduct(Y_negative, log(H));
+		RealMatrix Second_part = ebeProduct(Ones_minus_y, log(Ones_minus_sigmoid));
+		
+		return (1.0 / m) * sum(First_part.subtract(Second_part)) + sum_reg;
+	}
+	private static RealVector gradientChecking(RealVector theta,RealMatrix H, RealMatrix Y, double lambda, int m){
+		double epsilon = 1e-4;
+		RealVector grad = MatrixUtils.createRealVector(new double[theta.getDimension()]);
+		
+		RealMatrix Theta1 = reshape(Arrays.copyOfRange(theta.toArray(), 0, 10025), 25, 401); 
+		RealMatrix Theta2 = reshape(Arrays.copyOfRange(theta.toArray(), 10025, theta.toArray().length+1), 10, 26);
+		
+		RealMatrix Theta_plus = Theta1.scalarAdd(epsilon);
+		RealMatrix Theta_minus = Theta1.scalarAdd(-epsilon);
+//		grad() = 
+		
+		return null;
 	}
 
 }
