@@ -168,8 +168,8 @@ public class AlgebraUtils{
 		int count = 0;
 		for (int i = 0; i < matrixs.length; i++) {
 			RealMatrix matrix = matrixs[i];
-			for(int j = 0;j < matrix.getRowDimension();j++){
-				double[] row = matrix.getRowVector(j).toArray();
+			for(int j = 0;j < matrix.getColumnDimension();j++){
+				double[] row = matrix.getColumnVector(j).toArray();
 				System.arraycopy(row, 0, vector, count, row.length);
 				count += row.length;
 			}

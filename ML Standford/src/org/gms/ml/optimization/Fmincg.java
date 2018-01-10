@@ -1,8 +1,10 @@
-package org.gms.ml.logistic;
+package org.gms.ml.optimization;
+
+import static org.gms.ml.utils.OutputUtils.*;
 
 import org.apache.commons.math3.linear.MatrixUtils;
-import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
+import org.gms.ml.CostFunction;
 
 public class Fmincg {
 
@@ -13,14 +15,14 @@ public class Fmincg {
 	private final static int MAX = 20;
 	private final static int RATIO = 100;
 	
-	public static Object[] fmincg(RealVector init_theta, RealMatrix X, RealVector y, double lambda, int maxIter){
-		
+	public static Object[] fmincg(CostFunction costFunction, RealVector init_theta, int maxIter){
 		String S = "Iteration ";
 		int red = 1;
 		int i = 0;
 		boolean ls_failed = false;
 		RealVector fX = MatrixUtils.createRealVector(new double[]{});
-		Object[] rc = MultiVarianteRegularized.lrCostFunction(init_theta, X, y, lambda);
+		Object[] rc = costFunction.execute(init_theta);
+//		Object[] rc = MultiVarianteRegularized.lrCostFunction(init_theta, X, y, lambda);
 		RealVector df1 = (RealVector)rc[1];
 		double f1 = (Double)rc[0];
 //		i = i + (length<0);                                            % count epochs?!
@@ -37,7 +39,7 @@ public class Fmincg {
 //			System.out.println(init_theta);
 
 			
-			rc = MultiVarianteRegularized.lrCostFunction(init_theta, X, y, lambda);
+			rc = costFunction.execute(init_theta);
 //			i = i + (length<0);                                          % count epochs?!
 			RealVector df2 = (RealVector)rc[1];
 			double f2 = (Double)rc[0];
@@ -64,7 +66,7 @@ public class Fmincg {
 					z2 = Double.max(Double.min(z2, INT*z3), (1-INT)*z3);
 					z1 = z1 + z2;
 					init_theta = init_theta.add(s.mapMultiply(z2));
-					rc = MultiVarianteRegularized.lrCostFunction(init_theta, X, y, lambda);
+					rc = costFunction.execute(init_theta);
 					df2 = (RealVector)rc[1];
 					f2 = (Double)rc[0];
 					M--; //i = i + (length<0);                           % count epochs?!
@@ -100,7 +102,7 @@ public class Fmincg {
 				f3 = f2; d3 = d2; z3 = -z2;
 				z1 = z1 + z2;
 				init_theta = init_theta.add(s.mapMultiply(z2));
-				rc = MultiVarianteRegularized.lrCostFunction(init_theta, X, y, lambda);
+				rc = costFunction.execute(init_theta);
 				f2 = (Double)rc[0];
 				df2 = (RealVector)rc[1];
 				M--; //i = i + (length<0);                           % count epochs?!
@@ -110,7 +112,7 @@ public class Fmincg {
 			if(success){
 				f1 = f2;
 				fX = fX.append(f1);
-				//Prueba.fprintf("%s %4d | Cost: %4.6e\n", S, i, f1);
+				fprintf("%s %4d | Cost: %4.6e\n", S, i, f1);
 				s = s.mapMultiplyToSelf((df2.dotProduct(df2) - df1.dotProduct(df2))/(df1.dotProduct(df1))).subtract(df2);
 				RealVector tmp = df1; df1 = df2; df2 = tmp;
 				d2 = df1.dotProduct(s);
@@ -134,7 +136,7 @@ public class Fmincg {
 			}
 			
 		}
-		MultiVarianteRegularized.fprintf("%s %4d | Cost: %4.6e\n", S, i, f1);
+//		fprintf("%s %4d | Cost: %4.6e\n", S, i, f1);
 		return new Object[] {init_theta, fX, i};
 	}
 }

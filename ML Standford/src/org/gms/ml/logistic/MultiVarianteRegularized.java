@@ -15,6 +15,7 @@ import org.apache.commons.math3.linear.RealMatrixFormat;
 import org.apache.commons.math3.linear.RealVector;
 import org.apache.commons.math3.linear.RealVectorChangingVisitor;
 import org.apache.commons.math3.stat.StatUtils;
+import org.gms.ml.optimization.Fmincg;
 
 import com.jmatio.io.MatFileReader;
 import com.jmatio.types.MLDouble;
@@ -110,7 +111,7 @@ public class MultiVarianteRegularized {
 		for (int i = 1;i <= num_labels; i++) {
 			final int ic = i;
 			RealVector init_theta = MatrixUtils.createRealVector(new double[n + 1]);
-			Object[] res = Fmincg.fmincg(init_theta, X, y.map((x -> x == ic?1:0)), lambda, 50);
+			Object[] res = Fmincg.fmincg(new LRCostFunction(y.map((x -> x == ic?1:0)), X, lambda), init_theta, 50);
 			all_theta.setRowVector(i-1, (RealVector)res[0]);
 //			all_theta(i,:) = fmincg (@(t)(lrCostFunction(t, X, (y == i), lambda)), ...
 //				                           initial_theta, options);

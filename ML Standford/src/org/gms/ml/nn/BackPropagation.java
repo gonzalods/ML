@@ -6,24 +6,30 @@ import static org.gms.ml.utils.OutputUtils.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Random;
 
+import org.apache.commons.math3.analysis.function.Sigmoid;
+import org.apache.commons.math3.analysis.function.Sin;
 import org.apache.commons.math3.linear.DefaultRealMatrixChangingVisitor;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
+import org.apache.commons.math3.linear.RealMatrixChangingVisitor;
 import org.apache.commons.math3.linear.RealVector;
-import org.apache.commons.math3.random.GaussianRandomGenerator;
-import org.apache.commons.math3.random.NormalizedRandomGenerator;
-import org.apache.commons.math3.random.RandomGenerator;
-import org.apache.commons.math3.random.RandomGeneratorFactory;
+import org.apache.commons.math3.random.RandomDataGenerator;
+import org.apache.commons.math3.stat.StatUtils;
+import org.gms.ml.CostFunction;
+import org.gms.ml.optimization.Fmincg;
 
 import com.jmatio.io.MatFileReader;
 import com.jmatio.types.MLDouble;
 
 public class BackPropagation {
 
-	private static RandomGenerator rg = RandomGeneratorFactory.createRandomGenerator(new Random());
 	public static void main(String[] args) throws IOException {
+		
+		int input_layer_size  = 400;  
+		int hidden_layer_size = 25;
+		int num_labels = 10;
+		double lambda = 0.0;
 		
 		fprintf("Loading and Visualizing Data ...\n");
 		
@@ -41,155 +47,190 @@ public class BackPropagation {
 		RealMatrix Theta1 = MatrixUtils.createRealMatrix(((MLDouble)mfr.getMLArray("Theta1")).getArray());
 		RealMatrix Theta2 = MatrixUtils.createRealMatrix(((MLDouble)mfr.getMLArray("Theta2")).getArray());
 		
-		System.out.printf("Dimensiones Theta1 %dx%d%n",Theta1.getRowDimension(), Theta1.getColumnDimension());
-		System.out.printf("Dimensiones Theta2 %dx%d%n",Theta2.getRowDimension(), Theta2.getColumnDimension());
+		fprintf("\nFeedforward Using Neural Network ...\n");
+		RealVector nn_params = rollMatrixs(Theta1, Theta2);
+
+		NNCostFunction nnCostFunction = new NNCostFunction(input_layer_size, hidden_layer_size, num_labels, y, X, lambda);
+		Object[] res = nnCostFunction.execute(nn_params);
+		fprintf("Cost at parameters (loaded from ex4weights): %f " +
+		         "\n(this value should be about 0.287629)\n", res[0]);
 		
-//		RealVector theta_all = rollMatrixs(Theta1, Theta2);
-//		Object[] res = nnCostFunction(theta_all, X, y, 2);
-//		
-//		fprintf("Función de coste: %.6e%n", res[0]);
-//		
-//		double[] gradAll = ((RealVector)res[1]).toArray();
-//		RealMatrix Grad1 = reshape(Arrays.copyOfRange(gradAll, 0, 10025), 25, 401);
-//		RealMatrix Grad2 = reshape(Arrays.copyOfRange(gradAll, 10025, gradAll.length+1), 10, 26);
-//		System.out.println("Grad1");
-//		fprintf(Grad1);
-//		System.out.println("Theta1");
-//		fprintf(Theta1);
-//		System.out.println("Grad2");
-//		fprintf(Grad2);
-//		System.out.println("Theta2");
-//		fprintf(Theta2);
+		fprintf("\nChecking Cost Function (w/ Regularization) ... \n");
+
+		lambda = 1.0;
+		nnCostFunction.setLambda(lambda);
+		res = nnCostFunction.execute(nn_params);
+		fprintf("Cost at parameters (loaded from ex4weights): %f " +
+		         "\n(this value should be about 0.383770)\n", res[0]);
 		
-//		generateRandomMatrix(Theta1);
-//		generateRandomMatrix(Theta2);
+		fprintf("\nEvaluating sigmoid gradient...\n");
+		RealVector g = sigmoidGradient(MatrixUtils.createRealVector(new double[]{-1.0, -0.5, 0.0, 0.5, 1.0}));
+		fprintf("Sigmoid gradient evaluated at [-1 -0.5 0 0.5 1]:\n  ");
+		fprintf("%f ", g);
+		fprintf("\n\n");
 		
-		RealVector theta_all = rollMatrixs(Theta1, Theta2);
-		Object[] res = nnCostFunction(theta_all, X, y, 2);
-		fprintf("Función de coste: %.6e%n", res[0]);
+		fprintf("\nInitializing Neural Network Parameters ...\n");
+		Theta1 = randInitializeWeights(25, 400);
+		Theta2 = randInitializeWeights(10, 25);
 		
-		res = nnCostFunction((RealVector)res[1], X, y, 2);
-		fprintf("Función de coste: %.6e%n", res[0]);
+		RealVector initial_nn_params = rollMatrixs(Theta1, Theta2);
 		
-//		double[] gradAll = ((RealVector)res[1]).toArray();
-//		RealMatrix Grad1 = reshape(Arrays.copyOfRange(gradAll, 0, 10025), 25, 401);
-//		RealMatrix Grad2 = reshape(Arrays.copyOfRange(gradAll, 10025, gradAll.length+1), 10, 26);
-//		System.out.println("Grad1");
-//		fprintf(Grad1);
-//		System.out.println("Theta1");
-//		fprintf(Theta1);
-//		System.out.println("Grad2");
-//		fprintf(Grad2);
-//		System.out.println("Theta2");
-//		fprintf(Theta2);
+		fprintf("\nChecking Backpropagation... \n");
+		checkNNGradients();
+		
+		fprintf("\nChecking Backpropagation (w/ Regularization) ... \n");
+		checkNNGradients(3);
+		
+		lambda = 3.0;
+		nnCostFunction.setLambda(lambda);
+		res  = nnCostFunction.execute(nn_params);
+
+		fprintf("\n\nCost at (fixed) debugging parameters (w/ lambda = %f): %f " +
+		"\n(for lambda = 3, this value should be about 0.576051)\n\n", lambda, res[0]);
+		
+		fprintf("\nTraining Neural Network... \n");
+
+		lambda = 1;
+		nnCostFunction.setLambda(lambda);
+		res = Fmincg.fmincg(nnCostFunction, initial_nn_params, 50);
+		nn_params =  (RealVector)res[0];
+
+		Theta1 = reshape(Arrays.copyOfRange(nn_params.toArray(), 0, hidden_layer_size * (input_layer_size +1)), 
+				hidden_layer_size, input_layer_size + 1);
+		
+		Theta2 = reshape(Arrays.copyOfRange(nn_params.toArray(), hidden_layer_size * (input_layer_size + 1), nn_params.toArray().length+1), 
+				num_labels, hidden_layer_size + 1);
+		
+		RealVector pred = predict(Theta1, Theta2, X);
+
+		double mean = StatUtils.mean(compareEqVectors(pred, y).toArray());
+		fprintf("\nTraining Set Accuracy: %f\n", mean * 100);
 		
 	}
 	
-	private static void generateRandomMatrix(RealMatrix M){
-		final NormalizedRandomGenerator nrg = new GaussianRandomGenerator(rg);
-		M.walkInColumnOrder(new DefaultRealMatrixChangingVisitor(){
+	private static RealMatrix randInitializeWeights(int layerOut, int layerIn){
+		final RandomDataGenerator nrg = new RandomDataGenerator();
+		double epsilonInit = 0.12;
+		RealMatrix result = MatrixUtils.createRealMatrix(layerOut, layerIn + 1);
+		result.walkInColumnOrder(new DefaultRealMatrixChangingVisitor(){
 			@Override
 			public double visit(int row, int column, double value) {
-				return nrg.nextNormalizedDouble();
+				return nrg.nextUniform(0, 1) * 2 * (epsilonInit) - epsilonInit;
 			}
 		});
-	}
-	public static Object[] nnCostFunction(RealVector theta, RealMatrix X, RealVector y, double lambda){
-		int m = y.getDimension();
-		double J = 0;
-		RealVector grad = null;
-		
-		RealMatrix Theta1 = reshape(Arrays.copyOfRange(theta.toArray(), 0, 10025), 25, 401); 
-		RealMatrix Theta2 = reshape(Arrays.copyOfRange(theta.toArray(), 10025, theta.toArray().length+1), 10, 26);
-		
-		RealMatrix A1 = addColumToMatrix(ones(m), X); 				// A1 = mx401
-		RealMatrix A2 = sigmoid(A1.multiply(Theta1.transpose()));	// mx401 * 401x25 = mx25
-		A2 = addColumToMatrix(ones(m), A2);							// A2 = mx26
-		RealMatrix H = sigmoid(A2.multiply(Theta2.transpose()));	// H = mx26 * 26x10 = mx10
-//		int k = H.getColumnDimension();
-		
-//		
-		RealMatrix Y = createMatrixFromVectors(compareEqVector(y, 1),compareEqVector(y, 2),compareEqVector(y, 3),
-				compareEqVector(y, 4),compareEqVector(y, 5),compareEqVector(y, 6),compareEqVector(y, 7),compareEqVector(y, 8),
-				compareEqVector(y, 9),compareEqVector(y, 10));
-		
-		J = jota(Theta1, Theta2, H, Y, lambda, m);
-		
-		RealMatrix Delta1 = MatrixUtils.createRealMatrix(Theta1.getRowDimension(), Theta1.getColumnDimension()); // 25x401
-		RealMatrix Delta2 = MatrixUtils.createRealMatrix(Theta2.getRowDimension(), Theta2.getColumnDimension()); // 10x26
-
-		for(int i = 0;i < m;i++){
-			RealMatrix a1i = A1.getRowMatrix(i).transpose();								// a1i		= 401x1
-			final RealMatrix a2i = A2.getRowMatrix(i).transpose();							// a2i 		= 26x1
-			RealMatrix hi = H.getRowMatrix(i).transpose();									// hi  		= 10x1
-			
-			RealMatrix deltaih = hi.subtract(Y.getRowMatrix(i).transpose());				
-//                      10x1   = 10x1   -       1x10   ->         10x1
-			RealMatrix deltai2 = Theta2.transpose().multiply(deltaih);
-//			     	    26x1   = 10x26 -> 26x10	       *     10x1
-			deltai2.walkInColumnOrder(new DefaultRealMatrixChangingVisitor(){
-				@Override
-				public double visit(int row, int column, double value) {
-					double result = value;
-					if(column != 0){
-						double av = a2i.getEntry(row, column);
-						result *= (av * (1 - av));
-					}
-					return result;
-				}
-			});
-			Delta1 = Delta1.add(deltai2.getSubMatrix(1, deltai2.getRowDimension()-1, 0, deltai2.getColumnDimension()-1)
-																	.multiply(a1i.transpose()));
-//          25x401   25x401	 +	 			25x1                        *    401x1 -> 1x401
-			Delta2 = Delta2.add(deltaih.multiply(a2i.transpose()));
-//          10x26  = 10x26       10x1      *    26x1 -> 1x26
-		}
-		
-		RealMatrix D1 = MatrixUtils.createRealMatrix(Theta1.getRowDimension(), Theta1.getColumnDimension());
-		RealMatrix D2 = MatrixUtils.createRealMatrix(Theta2.getRowDimension(), Theta2.getColumnDimension());
-		
-		
-		RealMatrix SumPart = Delta1.getSubMatrix(0, Delta1.getRowDimension()-1, 1, Delta1.getColumnDimension()-1)
-				.add(Theta1.getSubMatrix(0, Theta1.getRowDimension()-1, 1, Theta1.getColumnDimension()-1).scalarMultiply(lambda));
-		D1.setColumnVector(0, Delta1.getColumnVector(0).mapMultiply(1.0/m));
-		D1.setSubMatrix(SumPart.scalarMultiply(1.0/m).getData(), 0, 1);
-		
-		SumPart = Delta2.getSubMatrix(0, Delta2.getRowDimension()-1, 1, Delta2.getColumnDimension()-1)
-				.add(Theta2.getSubMatrix(0, Theta2.getRowDimension()-1, 1, Theta2.getColumnDimension()-1).scalarMultiply(lambda));
-		D2.setColumnVector(0, Delta2.getColumnVector(0).mapMultiplyToSelf(1.0/m));
-		D2.setSubMatrix(SumPart.scalarMultiply(1.0/m).getData(), 0, 1);
-		
-		grad = rollMatrixs(D1,D2);
-		return new Object[]{J, grad};
+		return result;
 	}
 	
-	private static double jota(RealMatrix Theta1, RealMatrix Theta2, RealMatrix H, RealMatrix Y, double lambda, int m){
-		
-		double sum_reg = sum(power(Theta1.getSubMatrix(0, Theta1.getRowDimension()-1, 1, Theta1.getColumnDimension()-1),2));
-			   sum_reg += sum(power(Theta2.getSubMatrix(0, Theta2.getRowDimension()-1, 1, Theta2.getColumnDimension()-1),2));
-		
-		sum_reg = lambda / (2.0 * m) * sum_reg;
-		
-		RealMatrix Y_negative = Y.scalarMultiply(-1.0);
-		RealMatrix Ones_minus_y = Y_negative.scalarAdd(1.0); 
-		RealMatrix Ones_minus_sigmoid = sigmoid(H).scalarMultiply(-1.0).scalarAdd(1.0);
-		RealMatrix First_part = ebeProduct(Y_negative, log(H));
-		RealMatrix Second_part = ebeProduct(Ones_minus_y, log(Ones_minus_sigmoid));
-		
-		return (1.0 / m) * sum(First_part.subtract(Second_part)) + sum_reg;
-	}
-	private static RealVector gradientChecking(RealVector theta,RealMatrix H, RealMatrix Y, double lambda, int m){
-		double epsilon = 1e-4;
-		RealVector grad = MatrixUtils.createRealVector(new double[theta.getDimension()]);
-		
-		RealMatrix Theta1 = reshape(Arrays.copyOfRange(theta.toArray(), 0, 10025), 25, 401); 
-		RealMatrix Theta2 = reshape(Arrays.copyOfRange(theta.toArray(), 10025, theta.toArray().length+1), 10, 26);
-		
-		RealMatrix Theta_plus = Theta1.scalarAdd(epsilon);
-		RealMatrix Theta_minus = Theta1.scalarAdd(-epsilon);
-//		grad() = 
-		
-		return null;
+	public static RealMatrix debugInitializeWeights(int layerOut, int layerIn){
+		final Sin sin = new Sin();
+		RealMatrix result = MatrixUtils.createRealMatrix(layerOut, layerIn + 1);
+		result.walkInColumnOrder(new DefaultRealMatrixChangingVisitor(){
+			int count = 0;
+			@Override
+			public double visit(int row, int column, double value) {
+				return sin.value(count++) / 10;
+			}
+		});
+		return result;
 	}
 
+	public static RealVector sigmoidGradient(RealVector z){
+		RealVector result = z.copy();
+		final Sigmoid sigmoid = new Sigmoid();
+		result = result.mapToSelf((x) -> sigmoid.value(x) * (1 - sigmoid.value(x)));
+		return result;
+	}
+	
+//	public static RealMatrix sigmoidGradient(RealMatrix Z){
+//		RealMatrix result = Z.copy();
+//		result.walkInColumnOrder(new DefaultRealMatrixChangingVisitor(){
+//			Sigmoid sigmoid = new Sigmoid();
+//			@Override
+//			public double visit(int row, int column, double value) {
+//				return sigmoid.value(value);
+//			}
+//		});
+//		return result;
+//	}
+	
+	public static void checkNNGradients(double ... lambdas){
+		double lambda = 0.0;
+		if(lambdas != null && lambdas.length != 0){
+			lambda = lambdas[0];
+		}
+		
+		int input_layer_size = 3;
+		int hidden_layer_size = 5;
+		int num_labels = 3;
+		int m = 5;
+		
+		RealMatrix Theta1 = debugInitializeWeights(hidden_layer_size, input_layer_size);
+		RealMatrix Theta2 = debugInitializeWeights(num_labels, hidden_layer_size);
+		
+		RealMatrix X  = debugInitializeWeights(m, input_layer_size - 1);
+		RealMatrix y = MatrixUtils.createColumnRealMatrix(new double[m]);
+		y.walkInColumnOrder(new DefaultRealMatrixChangingVisitor(){
+			@Override
+			public double visit(int row, int column, double value) {
+				return 1 + (column % num_labels);
+			}
+		});
+		
+		RealVector theta_all = rollMatrixs(Theta1, Theta2);
+		NNCostFunction nnCostFunction = new NNCostFunction(input_layer_size, hidden_layer_size, num_labels, y.getColumnVector(0), X, lambda);
+		Object[] res = nnCostFunction.execute(theta_all);
+		RealVector grad = (RealVector)res[1];
+		RealVector numgrad = computeNumericalGradient(nnCostFunction, theta_all);
+		for(int i = 0;i < grad.getDimension();i++){
+			System.out.printf("\t%f\t%f%n", numgrad.getEntry(i), grad.getEntry(i));
+		}
+		fprintf("The above two columns you get should be very similar.\n" +
+		         "(Left-Your Numerical Gradient, Right-Analytical Gradient)\n\n");
+		
+		double diff = numgrad.subtract(grad).getL1Norm() / numgrad.add(grad).getL1Norm();
+
+		fprintf("If your backpropagation implementation is correct, then \n" +
+		         "the relative difference will be small (less than 1e-9). \n" +
+		         "\nRelative Difference: %g\n", diff);
+	}
+	
+	public static RealVector computeNumericalGradient(CostFunction nnCostFunction, RealVector theta){
+		
+		RealVector numgrad = MatrixUtils.createRealVector(new double[theta.getDimension()]);
+		RealVector perturb = MatrixUtils.createRealVector(new double[theta.getDimension()]);
+		int numele = theta.getDimension();
+		double e = 1e-4;
+		for(int p = 0;p < numele;p++){
+			perturb.setEntry(p, e);
+			double loss1 = (Double) nnCostFunction.execute(theta.subtract(perturb))[0];
+			double loss2 = (Double) nnCostFunction.execute(theta.add(perturb))[0];
+			numgrad.setEntry(p, ((loss2 - loss1) / (2 * e)));
+			perturb.setEntry(p, 0.0);
+		}
+		return numgrad;
+	}
+	
+	public static RealVector predict(RealMatrix Theta1, RealMatrix Theta2, RealMatrix X){
+		
+		int m = X.getRowDimension();
+
+		RealVector pred = MatrixUtils.createRealVector(new double[m]);
+
+		RealMatrix A1 = addColumToMatrix(ones(m), X).multiply(Theta1.transpose());
+		RealMatrixChangingVisitor sigmoidChangingVisitor = new DefaultRealMatrixChangingVisitor(){
+			Sigmoid sigmoid = new Sigmoid();
+			@Override
+			public double visit(int row, int column, double value) {
+				return sigmoid.value(value);
+			}
+		}; 
+		A1.walkInColumnOrder(sigmoidChangingVisitor);
+		RealMatrix H = addColumToMatrix(ones(m), A1).multiply(Theta2.transpose());
+		H.walkInColumnOrder(sigmoidChangingVisitor);
+		for(int i = 0;i < m;i++) {
+			pred.setEntry(i, H.getRowVector(i).getMaxIndex() + 1);
+		}
+		
+		return pred;
+	}
 }
